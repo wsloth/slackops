@@ -1,8 +1,11 @@
 import os
+import logging
 from dotenv import load_dotenv
 from slack_bolt import App
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
 
 # Initialize your app with your bot token and signing secret
 app = App(
