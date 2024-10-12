@@ -1,44 +1,44 @@
 import os
+import re
 from typing import List, Dict, Any
-from github import Github
-from github import Auth
+from github import Github, Auth, Repository
 from dotenv import load_dotenv
 from slack_sdk import WebClient
-from logging import Logger
 from slack_bolt import App, Ack, Respond
 from slack_sdk.models.blocks import SectionBlock, ButtonElement, MarkdownTextObject
-import re
+from logging import Logger
 
 load_dotenv()
 
 auth = Auth.Token(os.environ.get("GITHUB_TOKEN"))
 
 def list_repositories() -> List[str]:
-    g = Github(auth=auth)
-    repos = [repo.name for repo in g.get_user().get_repos()]
-    g.close()
-    return repos
+    with Github(auth=auth) as g:
+        return [repo for repo in g.get_user().get_repos()]
 
 def search_repositories(query: str) -> List[str]:
-    g = Github(auth=auth)
-    repos = [repo.name for repo in g.get_user().get_repos() if re.search(query, repo.name, re.IGNORECASE)]
-    g.close()
-    return repos
+    with Github(auth=auth) as g:
+        return [repo for repo in g.get_user().get_repos() if re.search(query, repo.name, re.IGNORECASE)]
 
-def format_repositories_for_slack(repos: List[str]) -> List[Dict[str, Any]]:
-    blocks: List[Dict[str, Any]] = []
+def format_repositories_for_slack(repos: List[Repository.Repository]) -> List[Dict[str, Any]]:
+    blocks = []
     max_repos = 10
     for repo in repos[:max_repos]:
         blocks.append(SectionBlock(
-            text=MarkdownTextObject(text=f"- {repo}"),
+            text=MarkdownTextObject(text=f"*{repo.name}*\n"
+                         f":bust_in_silhouette: {repo.owner.name} | "
+                         f":star: {repo.stargazers_count} | "
+                         f":fork_and_knife: {repo.forks_count} | "
+                         f":calendar: Last updated {repo.updated_at.strftime('%Y-%m-%d')} | "
+                         f"<{repo.html_url}|View on GitHub>"),
             accessory=ButtonElement(
-                text="Run",
-                action_id=f"run_{repo}"
+            text="Actions",
+            action_id=f"run_{repo}"
             )
         ).to_dict())
     if len(repos) > max_repos:
         blocks.append(SectionBlock(
-            text=MarkdownTextObject(text=f"Showing first {max_repos} repositories. There are more repositories not displayed. Use the 'search <term' command to find more.")
+            text=MarkdownTextObject(text=f"Showing first {max_repos} repositories. There are more repositories not displayed. Use the `/slackops-github-actions search <term>` command to find more.")
         ).to_dict())
     return blocks
 
@@ -50,14 +50,14 @@ def register_github_actions(app: App) -> None:
         user_command = body["text"].strip().split()
         if not user_command:
             ack()
-            respond("No command provided. Use 'list' to list available repositories or 'search <query>' to search repositories.")
+            respond(":no_entry_sign: No command provided. Use 'list' to list available repositories or 'search <query>' to search repositories.")
             return
         
         command = user_command[0]
         
         if command == "list":
             logger.info("Responding with repository list")
-            ack(text="Fetching repositories, please wait...")
+            ack(text=":hourglass_flowing_sand: Fetching repositories, please wait...")
             repos = list_repositories()
             blocks = format_repositories_for_slack(repos)
             respond(
@@ -68,7 +68,7 @@ def register_github_actions(app: App) -> None:
         elif command == "search" and len(user_command) > 1:
             query = " ".join(user_command[1:])
             logger.info("Searching repositories with query: %s", query)
-            ack(text=f"Searching repositories for '{query}', please wait...")
+            ack(text=f":hourglass_flowing_sand: Searching repositories for '{query}', please wait...")
             repos = search_repositories(query)
             if repos:
                 blocks = format_repositories_for_slack(repos)
