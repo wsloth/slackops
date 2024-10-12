@@ -7,5 +7,5 @@ setup(
    author='Wessel Loth',
    author_email='wessel@loth.io',
    packages=find_packages(),  # Automatically find packages
-   install_requires=['slack_bolt', 'python-dotenv'], #external packages as dependencies
+   install_requires=['slack_bolt', 'python-dotenv', 'PyGithub'], #external packages as dependencies
 )
