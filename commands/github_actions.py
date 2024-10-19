@@ -27,11 +27,11 @@ def format_repositories_for_slack(repos: List[Repository.Repository]) -> List[Di
     max_repos = 10
     for repo in repos[:max_repos]:
         blocks.append(SectionBlock(
-            text=MarkdownTextObject(text=f"*{repo.name}*\n"
-                         f":bust_in_silhouette: {repo.owner.name} | "
-                         f":star: {repo.stargazers_count} | "
-                         f":fork_and_knife: {repo.forks_count} | "
-                         f":calendar: Last updated {repo.updated_at.strftime('%Y-%m-%d')} | "
+            text=MarkdownTextObject(text=f"*{repo.full_name}*\n"
+                         f":bust_in_silhouette: {repo.owner.name}  |  "
+                         f":star: {repo.stargazers_count}  |  "
+                         f":fork_and_knife: {repo.forks_count}  |  "
+                         f":calendar: Last updated {repo.updated_at.strftime('%Y-%m-%d')}  |  "
                          f"<{repo.html_url}|View on GitHub>"),
             accessory=ButtonElement(
             text="Actions",
@@ -113,21 +113,22 @@ def register_github_actions(app: App) -> None:
             respond(f"No GitHub actions found for repository `{repository_full_name}`.")
             return
 
+        title_text = f"{repository_full_name} actions" if len(repository_full_name) < 16 else repository_full_name[:24]
         modal_view = View(
             type="modal",
             callback_id="actions_modal",
-            title={"type": "plain_text", "text": "GitHub Actions"},
+            title={"type": "plain_text", "text": title_text},
             submit={"type": "plain_text", "text": "Run"},
             blocks=[
-                InputBlock(
-                    block_id="actions_select",
-                    label={"type": "plain_text", "text": "Select an action to run"},
-                    element=StaticSelectElement(
-                        action_id="select_action",
-                        placeholder={"type": "plain_text", "text": "Choose an action"},
-                        options=options
-                    )
+            InputBlock(
+                block_id="actions_select",
+                label={"type": "plain_text", "text": "Select an action to run"},
+                element=StaticSelectElement(
+                action_id="select_action",
+                placeholder={"type": "plain_text", "text": "Choose an action"},
+                options=options
                 )
+            )
             ]
         )
         logger.info("Opening modal view for selecting GitHub action")
