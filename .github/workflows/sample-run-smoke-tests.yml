@@ -1,6 +1,6 @@
 name: Sample - Run Smoke Tests
 
-on: [push]
+on: [workflow_dispatch]
 
 jobs:
   echo-job:

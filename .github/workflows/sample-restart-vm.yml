@@ -1,6 +1,6 @@
 name: Sample - Restart Virtual Machine
 
-on: [push]
+on: [workflow_dispatch]
 
 jobs:
   echo-job:

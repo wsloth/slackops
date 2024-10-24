@@ -9,6 +9,7 @@ from slack_bolt import App, Ack, Respond
 from slack_sdk.models.views import View
 from slack_sdk.models.blocks import SectionBlock, ButtonElement, MarkdownTextObject, Option, InputBlock, StaticSelectElement
 from logging import Logger
+import time
 
 load_dotenv()
 
@@ -116,19 +117,20 @@ def register_github_actions(app: App) -> None:
         title_text = f"{repository_full_name} actions" if len(repository_full_name) < 16 else repository_full_name[:24]
         modal_view = View(
             type="modal",
-            callback_id="actions_modal",
+            callback_id="submit_actions_modal",
             title={"type": "plain_text", "text": title_text},
             submit={"type": "plain_text", "text": "Run"},
+            private_metadata=json.dumps({"repository_full_name": repository_full_name}),
             blocks=[
-            InputBlock(
-                block_id="actions_select",
-                label={"type": "plain_text", "text": "Select an action to run"},
-                element=StaticSelectElement(
-                action_id="select_action",
-                placeholder={"type": "plain_text", "text": "Choose an action"},
-                options=options
+                InputBlock(
+                    block_id="actions_select",
+                    label={"type": "plain_text", "text": "Select an action to run"},
+                    element=StaticSelectElement(
+                    action_id="run_action",
+                    placeholder={"type": "plain_text", "text": "Choose an action"},
+                    options=options
+                    )
                 )
-            )
             ]
         )
         logger.info("Opening modal view for selecting GitHub action")
@@ -137,3 +139,52 @@ def register_github_actions(app: App) -> None:
             view=modal_view
         )
         logger.info("Modal view opened successfully")
+    
+    @app.view("submit_actions_modal")
+    def handle_run_action(ack: Ack, body: dict, client: WebClient, logger: Logger):        
+        logger.info("Received action to run GitHub action")
+        logger.info(f"Action body: {body}")
+        user = body['user']['username']
+        selected_action = body['view']['state']['values']['actions_select']['run_action']['selected_option']['value']
+
+        private_metadata = json.loads(body['view']['private_metadata'])
+        repository_full_name = private_metadata['repository_full_name']
+        logger.info(f"User {user} selected action: {selected_action} for repo: {repository_full_name}")
+
+        ack()
+
+        client.chat_postMessage(
+            channel=body['user']['id'],
+            text=f"Starting action `{selected_action}` for repository `{repository_full_name}`..."
+        )
+
+        ui_url = trigger_github_action(repository_full_name, selected_action, logger)
+
+        if ui_url:
+            client.chat_postMessage(
+            channel=body['user']['id'],
+            text=f"Running action `{selected_action}` for repository `{repository_full_name}`... View progress here: {ui_url}."
+            )
+        else:
+            client.chat_postMessage(
+                channel=body['user']['id'],
+                text=f"Action triggering failed for `{selected_action}` in repository `{repository_full_name}`. Make sure `workflow_dispatch` is in the workflow triggers. See more details here: <https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch>"
+            )
+        
+def trigger_github_action(repository_full_name: str, workflow_name: str, logger: Logger) -> str:
+    with Github(auth=auth) as g:
+        logger.info(f"Triggering GitHub action '{workflow_name}' for repository: {repository_full_name}")
+        repo = g.get_repo(repository_full_name)
+        workflow = next((wf for wf in repo.get_workflows() if wf.name == workflow_name), None)
+
+        if workflow:
+            workflow.create_dispatch(ref=repo.default_branch)
+            logger.info(f"Triggered workflow '{workflow_name}' on branch '{repo.default_branch}'")
+            time.sleep(3)  # wait to allow GitHub to create the dispatch
+            run = next((run for run in workflow.get_runs() if run.status != "completed"), None)
+            if run:
+                logger.info(f"Active workflow run url: {run.html_url} with status {run.status}")
+                return run.html_url
+        else:
+            logger.warning(f"Workflow '{workflow_name}' not found in repository '{repository_full_name}'")
+        return ""
