@@ -1,0 +1,22 @@
+name: Restart database server VM
+
+on: [workflow_dispatch]
+
+jobs:
+  stage1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo Stage 1
+        run: echo "This is Stage 1"
+
+  stage2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo Stage 2
+        run: echo "This is Stage 2"
+
+  stage3:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo Stage 3
+        run: echo "This is Stage 3"
