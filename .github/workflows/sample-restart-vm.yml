@@ -1,0 +1,10 @@
+name: Sample - Restart Virtual Machine
+
+on: [push]
+
+jobs:
+  echo-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo Hello
+        run: echo "Hello, World!"
