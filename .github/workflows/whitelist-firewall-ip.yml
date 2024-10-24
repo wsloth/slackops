@@ -1,22 +1,31 @@
 name: Add my own IP to the firewall whitelist
-
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Name of the firewall rule'
+        required: true
+        default: ''
+      ip:
+        description: 'IP Address to whitelist'
+        required: true
+        default: ''
 
 jobs:
   stage1:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo Stage 1
-        run: echo "This is Stage 1"
+      - name: Init VPN Connection
+        run: echo "Initializing VPN Connection"
 
   stage2:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo Stage 2
-        run: echo "This is Stage 2"
+      - name: Add Firewall Rule
+        run: "echo \"Adding Firewall Rule for IP: ${{ github.event.inputs.ip }} with Rule Name: ${{ github.event.inputs.name }}\""
 
   stage3:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo Stage 3
-        run: echo "This is Stage 3"
+      - name: Logging to Audit Log
+        run: echo "Logging to Audit Log"
